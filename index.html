@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rotador de imágenes</title>
+  <style>
+    html, body { margin:0; height:100%; background:#000; }
+    #wrap { display:flex; align-items:center; justify-content:center; height:100%; }
+    img { max-width:100%; max-height:100%; object-fit:contain; }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <img id="slide" alt="rotador" />
+  </div>
+  <script>
+    // Pega aquí tus URLs de imágenes (pueden ser públicas de Drive, Imgur, tu web, etc.)
+    const images = [
+      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=1600",
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=1600",
+      "https://images.unsplash.com/photo-1520975916090-3105956dac38?q=80&w=1600"
+    ];
+
+    const intervalMs = 10000; // cambia de imagen cada 10 segundos
+    const randomOrder = false; // pon a true si quieres orden aleatorio
+
+    let idx = 0;
+    const img = document.getElementById("slide");
+
+    function nextIndex() {
+      if (randomOrder) return Math.floor(Math.random() * images.length);
+      idx = (idx + 1) % images.length;
+      return idx;
+    }
+
+    function preload(src) {
+      return new Promise((res, rej) => {
+        const i = new Image();
+        i.onload = () => res(src);
+        i.onerror = rej;
+        i.src = src;
+      });
+    }
+
+    async function showInitial() {
+      if (!images.length) return;
+      try {
+        await preload(images[0]);
+        img.src = images[0];
+      } catch(e) {
+        img.alt = "No se pudo cargar la imagen inicial";
+      }
+    }
+
+    async function rotate() {
+      try {
+        const ni = nextIndex();
+        const src = images[ni];
+        await preload(src);
+        img.src = src;
+      } catch(e) {
+        /* silencioso para no cortar la rotación si alguna URL falla */
+      }
+    }
+
+    showInitial();
+    setInterval(rotate, intervalMs);
+  </script>
+</body>
+</html>
