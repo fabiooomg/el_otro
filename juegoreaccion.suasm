@@ -1,0 +1,201 @@
+; ====================================================================
+;  I/O MAPPING & CONSTANTS (Ajustar a las direcciones exactas de tu CPU)
+; ====================================================================
+
+.equ R_ZERO, R0            ; Registro Cero (asumido como siempre 0)
+.equ SWITCHES_ADDR, 0x1000  ; Dirección de Lectura de Switches
+.equ BUTTONS_ADDR, 0x1004   ; Dirección de Lectura de Botones
+.equ DISPLAY_ADDR, 0x1008   ; Dirección de Escritura del Display de 7 Segmentos
+.equ LEDS_ADDR, 0x100C      ; Dirección de Escritura de los LEDs
+.equ TIMER_ADDR, 0x1010     ; Dirección de Lectura del Temporizador (milisegundos)
+
+.equ SWITCH_INICIO_MASK, 0x0001 ; Máscara para el Switch de Inicio (SW0)
+
+; Máscaras de botones (Jugadores 1 al 5)
+.equ J1_MASK, 0x01          ; Bit 0
+.equ J2_MASK, 0x02          ; Bit 1
+.equ J3_MASK, 0x04          ; Bit 2
+.equ J4_MASK, 0x08          ; Bit 3
+.equ J5_MASK, 0x10          ; Bit 4
+
+; Definiciones para el Display de 7 segmentos (asumiendo que 0-9 son mapeados
+; por hardware o una rutina de software. Aquí usamos valores directos 1-5.)
+.equ DISPLAY_1, 1
+.equ DISPLAY_2, 2
+.equ DISPLAY_3, 3
+.equ DISPLAY_4, 4
+.equ DISPLAY_5, 5
+
+; ====================================================================
+;  MAIN PROGRAM FLOW
+; ====================================================================
+
+INICIO:
+    ; 1. Inicialización y Limpieza
+    STORE R_ZERO, DISPLAY_ADDR  ; Limpiar Display
+    STORE R_ZERO, LEDS_ADDR     ; Limpiar LEDs
+    JUMP SALA_ESPERA
+
+; --------------------------------------------------------------------
+;  I. SALA DE ESPERA
+;  R1: Estado de Switches
+;  R2: Estado de Botones
+; --------------------------------------------------------------------
+SALA_ESPERA:
+    ; A. Comprobar Switch de Inicio
+    LOAD R1, SWITCHES_ADDR      ; Cargar estado de switches
+    AND R1, R1, SWITCH_INICIO_MASK ; Aislar SW0
+    
+    CMP R1, R_ZERO              ; ¿SW0 activado?
+    JUMP_NE INICIO_CUENTA       ; SI: Comienza juego
+    
+    ; B. Comprobar Botones (Mostrar jugador que pulsa temprano)
+    LOAD R2, BUTTONS_ADDR       ; Cargar estado de botones
+    CMP R2, R_ZERO              ; ¿Algún botón pulsado?
+    JUMP_EQ SALA_ESPERA         ; NO: Sigue esperando (loop)
+
+    ; Identificar qué jugador pulsó y mostrar su número (solo el primero que coincida)
+    CALL MOSTRAR_JUGADOR_EARLY ; R4 = N° Jugador (1-5)
+
+    STORE R4, DISPLAY_ADDR      ; Mostrar N° de Jugador en Display
+    JUMP SALA_ESPERA            ; Volver a esperar el switch
+
+; --------------------------------------------------------------------
+;  II. CUENTA REGRESIVA (3, 2, 1, 0)
+;  R5: Contador de cuenta regresiva
+; --------------------------------------------------------------------
+INICIO_CUENTA:
+    LOAD R5, #3                 ; Inicia en 3
+    
+CUENTA_LOOP:
+    STORE R5, DISPLAY_ADDR      ; Mostrar 3, 2, 1, ...
+    
+    CALL DELAY_1_SEC            ; Esperar 1000ms
+
+    DEC R5                      ; R5 = R5 - 1
+    CMP R5, R_ZERO
+    JUMP_GE CUENTA_LOOP         ; Si R5 >= 0, repetir
+    
+    STORE R_ZERO, DISPLAY_ADDR  ; Limpiar Display al terminar (muestra 0)
+    JUMP ESPERA_REACCION        ; Pasar a detección
+
+; --------------------------------------------------------------------
+;  III. ESPERA DE REACCIÓN Y DETECCIÓN DE GANADOR
+;  R6: T_inicio; R7: T_final; R8: T_reacción (ms); R9: N° Ganador
+; --------------------------------------------------------------------
+ESPERA_REACCION:
+    LOAD R6, TIMER_ADDR         ; R6 = Grabar el tiempo inicial
+    
+REACCION_LOOP:
+    LOAD R2, BUTTONS_ADDR       ; R2 = Leer botones
+    CMP R2, R_ZERO
+    JUMP_EQ REACCION_LOOP       ; Si R2 = 0, seguir esperando
+
+    ; ¡Botón presionado!
+    LOAD R7, TIMER_ADDR         ; R7 = Leer tiempo final
+    SUB R8, R7, R6              ; R8 = R7 - R6 (Tiempo de Reacción en ms)
+    
+    CALL ENCONTRAR_GANADOR      ; R9 = N° de Jugador Ganador
+
+    JUMP MOSTRAR_RESULTADO      ; Ir a mostrar resultados
+
+; --------------------------------------------------------------------
+;  IV. MOSTRAR RESULTADOS
+; --------------------------------------------------------------------
+MOSTRAR_RESULTADO:
+    STORE R9, DISPLAY_ADDR      ; Mostrar N° Ganador en Display
+    STORE R8, LEDS_ADDR         ; Mostrar Tiempo de Reacción (ms) en LEDs
+    
+    JUMP ESPERA_REINICIO        ; Esperar la señal de reinicio
+
+; --------------------------------------------------------------------
+;  V. ESPERA DE REINICIO
+; --------------------------------------------------------------------
+ESPERA_REINICIO:
+    LOAD R1, SWITCHES_ADDR
+    AND R1, R1, SWITCH_INICIO_MASK
+    
+    CMP R1, R_ZERO              ; ¿Switch de inicio está en posición OFF (0)?
+    JUMP_NE ESPERA_REINICIO     ; NO: Seguir esperando
+    
+    JUMP INICIO                 ; SI: Reiniciar juego
+
+
+; ====================================================================
+;  SUBRUTINAS
+; ====================================================================
+
+; --------------------------------------------------------------------
+;  ;DELAY_1_SEC; Espera 1000ms usando el temporizador
+; --------------------------------------------------------------------
+DELAY_1_SEC:
+    PUSH R10                    ; Guardar R10 (si tu arquitectura lo requiere)
+    LOAD R10, TIMER_ADDR        ; R10 = T_actual
+    ADD R10, R10, #1000         ; R10 = T_objetivo = T_actual + 1000ms
+DELAY_WAIT:
+    LOAD R7, TIMER_ADDR
+    CMP R7, R10                 ; ¿T_actual alcanzó T_objetivo?
+    JUMP_LT DELAY_WAIT          ; NO: Seguir esperando
+    POP R10                     ; Restaurar R10
+    RET
+
+; --------------------------------------------------------------------
+;  ;MOSTRAR_JUGADOR_EARLY; Identifica y guarda el N° del jugador que pulsa
+;  durante la sala de espera (R4)
+; --------------------------------------------------------------------
+MOSTRAR_JUGADOR_EARLY:
+    ; R2 ya contiene el estado de botones
+    AND R3, R2, J1_MASK
+    JUMP_NE FOUND_J1_E
+
+    AND R3, R2, J2_MASK
+    JUMP_NE FOUND_J2_E
+
+    ; ... (Repetir chequeo para J3, J4, J5)
+    AND R3, R2, J3_MASK
+    JUMP_NE FOUND_J3_E
+    AND R3, R2, J4_MASK
+    JUMP_NE FOUND_J4_E
+    AND R3, R2, J5_MASK
+    JUMP_NE FOUND_J5_E
+    
+    LOAD R4, R_ZERO ; Si no se identifica, mostrar 0.
+    RET
+
+FOUND_J1_E: LOAD R4, #DISPLAY_1; RET
+FOUND_J2_E: LOAD R4, #DISPLAY_2; RET
+FOUND_J3_E: LOAD R4, #DISPLAY_3; RET
+FOUND_J4_E: LOAD R4, #DISPLAY_4; RET
+FOUND_J5_E: LOAD R4, #DISPLAY_5; RET
+
+
+; --------------------------------------------------------------------
+;  ;ENCONTRAR_GANADOR; Identifica el N° del primer jugador (R9)
+;  (El primer bit activo en R2 determina el ganador)
+; --------------------------------------------------------------------
+ENCONTRAR_GANADOR:
+    ; R2 ya contiene la máscara de botones pulsados
+    
+    AND R3, R2, J1_MASK         ; ¿Es J1?
+    JUMP_NE FOUND_J1
+    
+    AND R3, R2, J2_MASK         ; ¿Es J2?
+    JUMP_NE FOUND_J2
+    
+    AND R3, R2, J3_MASK         ; ¿Es J3?
+    JUMP_NE FOUND_J3
+    
+    AND R3, R2, J4_MASK         ; ¿Es J4?
+    JUMP_NE FOUND_J4
+    
+    AND R3, R2, J5_MASK         ; ¿Es J5?
+    JUMP_NE FOUND_J5
+    
+    LOAD R9, R_ZERO ; Error o no identificado, asignar 0.
+    RET
+
+FOUND_J1: LOAD R9, #DISPLAY_1; RET
+FOUND_J2: LOAD R9, #DISPLAY_2; RET
+FOUND_J3: LOAD R9, #DISPLAY_3; RET
+FOUND_J4: LOAD R9, #DISPLAY_4; RET
+FOUND_J5: LOAD R9, #DISPLAY_5; RET
