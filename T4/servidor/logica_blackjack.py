@@ -185,20 +185,7 @@ class PartidaBlackjack(threading.Thread):
     def llamar_api_patch(self, usuario, cambio_saldo):
         """ Llama al endpoint PATCH /users/:id para actualizar el saldo. """
         try:
-            url = f"http://{self.servidor.host}:{self.servidor.port + 1111}/users/{usuario}" # Asumiendo puerto API = port + 1111 o hardcoded
-            # Mejor usar self.servidor.HOST y self.servidor.API_PORT si están disponibles en Servidor
-            # Revisando main.py, API_PORT se pasa a Servidor? No, se pasa a api_thread.
-            # Servidor tiene HOST y PORT.
-            # Pero api.py lee API_PORT de conexion.json.
-            # Asumiremos lectura directa de parametros o conexion.json para seguridad,
-            # o usaremos el del archivo conexion.json
-
-            with open("servidor/conexion.json", 'r') as f:
-                 d = json.load(f)
-                 host_api = d["host"]
-                 port_api = d["puertoAPI"]
-
-            url = f"http://{host_api}:{port_api}/users/{usuario}"
+            url = f"http://{self.servidor.HOST}:{self.servidor.API_PORT}/users/{usuario}"
             headers = {'Authorization': p.TOKEN_AUTENTICACION, 'Content-Type': 'application/json'}
             payload = {'cambio_saldo': cambio_saldo}
 
@@ -211,12 +198,7 @@ class PartidaBlackjack(threading.Thread):
     def llamar_api_post_games(self, juego, resultados):
         """ Llama al endpoint POST /games/:juego para registrar resultados. """
         try:
-            with open("servidor/conexion.json", 'r') as f:
-                 d = json.load(f)
-                 host_api = d["host"]
-                 port_api = d["puertoAPI"]
-
-            url = f"http://{host_api}:{port_api}/games/{juego}"
+            url = f"http://{self.servidor.HOST}:{self.servidor.API_PORT}/games/{juego}"
             headers = {'Authorization': p.TOKEN_AUTENTICACION, 'Content-Type': 'application/json'}
 
             response = requests.post(url, headers=headers, json=resultados)

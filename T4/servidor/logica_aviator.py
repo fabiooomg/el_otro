@@ -154,5 +154,12 @@ class PartidaAviator(threading.Thread):
 
     def llamar_api_post_games(self, juego, resultados):
         """ Llama al endpoint POST /games/:juego para registrar resultados. """
-        # Lógica similar a llamar_api_patch, pero POST a /games
-        pass
+        try:
+            url = f"http://{self.servidor.HOST}:{self.servidor.API_PORT}/games/{juego}"
+            headers = {'Authorization': p.TOKEN_AUTENTICACION, 'Content-Type': 'application/json'}
+
+            response = requests.post(url, headers=headers, json=resultados)
+            return response.status_code == 200
+        except Exception as e:
+            print(f"[API ERROR] Fallo al postear resultados: {e}")
+            return False

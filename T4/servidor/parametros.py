@@ -3,9 +3,10 @@ CHUNK_SIZE = 124
 TOKEN_AUTENTICACION = "dccasino_token_secreto_2025"
 SALDO_INICIAL = 5000
 ULTIMAS_GANANCIAS_PRINCIPAL = 5
-USUARIOS_PATH = "database/usuarios.csv"
-GANANCIAS_PATH = "database/ganancias.csv"
+USUARIOS_PATH = "servidor/database/usuarios.csv"
+GANANCIAS_PATH = "servidor/database/ganancias.csv"
 
+TIEMPO_ENTRE_RONDAS = 5.0
 APUESTA_MINIMA_AVIATOR = 100
 MAXIMO_JUGADORES_AVIATOR = 3
 DURACION_RONDA_AVIATOR = 10.0
