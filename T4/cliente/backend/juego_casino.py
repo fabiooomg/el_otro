@@ -7,6 +7,7 @@ class DCCasinoBackend(QObject):
     senal_login_exitoso = pyqtSignal(str, int) # Usuario, Saldo
     senal_respuesta_login = pyqtSignal(bool, str) # Éxito/Fallo, Mensaje
     senal_actualizar_saldo = pyqtSignal(int)
+    senal_historial_listo = pyqtSignal(list) # 💡 Señal para devolver el historial
     # ... más señales de juego: senal_actualizar_mesa_blackjack, senal_mostrar_multiplicador_aviator
 
     def __init__(self) -> None:
@@ -67,16 +68,37 @@ class DCCasinoBackend(QObject):
         elif comando == "BLACKJACK_MESA":
             # self.senal_actualizar_mesa_blackjack.emit(datos_juego)
             pass
-        # ... etc.
+        elif comando == "historial-global":
+             # Recibe el historial del servidor y lo pasa al frontend
+             historial = datos_juego.get("data", [])
+             self.senal_historial_listo.emit(historial)
 
     # D. Métodos de Acción del Juego (UI -> Red)
     
+    def solicitar_historial_global(self) -> None:
+        """ Solicita el historial de ganancias al servidor. """
+        self.cliente.enviar_mensaje({"comando": "solicitar-historial"})
+
     def apostar_blackjack(self, monto: int) -> None:
         if monto > 0 and monto <= self.saldo_local:
             mensaje = {"comando": "apostar", "juego": "blackjack", "monto": monto}
             self.cliente.enviar_mensaje(mensaje)
         else:
-            # Notificar a la UI de un error de saldo insuficiente
-            pass
-            
-    # [Resto de los métodos como pedir_carta, plantarse, retirarse_aviator, etc., siguen la misma estructura]
+            # Podríamos emitir señal de error, pero por ahora solo log
+            print("[BACKEND] Saldo insuficiente para apostar.")
+
+    def pedir_carta(self) -> None:
+        self.cliente.enviar_mensaje({"comando": "pedir-carta"})
+
+    def plantarse_blackjack(self) -> None:
+        self.cliente.enviar_mensaje({"comando": "plantarse"})
+
+    def apostar_aviator(self, monto: int) -> None:
+        if monto > 0 and monto <= self.saldo_local:
+            mensaje = {"comando": "apostar", "juego": "aviator", "monto": monto}
+            self.cliente.enviar_mensaje(mensaje)
+        else:
+             print("[BACKEND] Saldo insuficiente para apostar.")
+
+    def retirarse_aviator(self) -> None:
+        self.cliente.enviar_mensaje({"comando": "retirarse"})

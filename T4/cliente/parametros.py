@@ -12,7 +12,7 @@ DURACION_RONDA_AVIATOR = 10.0
 APUESTA_MINIMA_BLACKJACK = 50
 MAXIMO_JUGADORES_BLACKJACK = 4
 
-RUTA_AVION = "cliente/assets/aviator.png"
-RUTA_CARTA_BOCA_ABAJO = "cliente/assets/cards_back.png"
-RUTA_RULETA = "cliente/assets/ruleta.png"
-RUTA_BOLITA = "cliente/assets/bolita.png"
+RUTA_AVION = "Assets/Aviator/logo-aviator.png"
+RUTA_CARTA_BOCA_ABAJO = "Assets/Blackjack/card_back.png"
+RUTA_RULETA = "Assets/Ruleta/ruleta.png"
+RUTA_BOLITA = "Assets/Ruleta/circulito.png"

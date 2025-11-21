@@ -17,12 +17,14 @@ class Servidor:
 
     id_clientes = 0
 
-    def __init__(self, port: int, host: str) -> None:
+    def __init__(self, port: int, host: str, api_port: int) -> None:
         """
         Inicializar el servidor.
         """
         self.host = host
+        self.HOST = host # Alias para logica_aviator
         self.port = port
+        self.API_PORT = api_port
         self.clientes = {}
         self.socket_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -87,7 +89,7 @@ if __name__ == "__main__":
     api_thread.start()
 
     # 3. Iniciar el Servidor de Sockets (Lógica existente)
-    server = Servidor(PORT, HOST)
+    server = Servidor(PORT, HOST, API_PORT)
     server.bind_listen()
     
     try:

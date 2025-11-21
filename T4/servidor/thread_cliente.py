@@ -49,9 +49,94 @@ class ThreadCliente(threading.Thread):
         self.listen()
         
     # --- Métodos de Red (Envío y Recepción) ---
-    # (Asumiendo que 'procesar_mensajes_a_enviar' y 'listen' ya usan pr.empaquetar_mensaje/desencriptar_y_reasamblar)
-    
-    # ... (procesar_mensajes_a_enviar y listen van aquí)
+
+    def recibir_bytes(self, cantidad: int) -> bytearray:
+        """
+        Recibe N cantidad de bytes.
+        """
+        bytes_leidos = bytearray()
+        buffer_size = 4096
+        while len(bytes_leidos) < cantidad:
+            cantidad_restante = cantidad - len(bytes_leidos)
+            bytes_leer = min(buffer_size, cantidad_restante)
+            try:
+                respuesta = self.socket.recv(bytes_leer)
+                if not respuesta:
+                    return None
+                bytes_leidos += respuesta
+            except OSError:
+                return None
+        return bytes_leidos
+
+    def listen(self) -> None:
+        """
+        Ciclo principal de escucha de mensajes del cliente.
+        """
+        while True:
+            try:
+                # 1. Recibir Largo (4 bytes LITTLE ENDIAN)
+                largo_bytes = self.recibir_bytes(4)
+                if not largo_bytes:
+                    print(f"Cliente {self.id_cliente} desconectado.")
+                    break
+                largo_contenido = int.from_bytes(largo_bytes, "little")
+
+                # 2. Recibir Paquetes
+                num_paquetes = ceil(largo_contenido / p.CHUNK_SIZE)
+                paquetes_recibidos = {}
+
+                for _ in range(num_paquetes):
+                    # 128 bytes por paquete (4 idx + 124 contenido)
+                    paquete_encriptado = self.recibir_bytes(p.CHUNK_SIZE + 4)
+                    if not paquete_encriptado:
+                        raise ConnectionResetError
+
+                    # Desencriptar
+                    paquete = pr.cifrar_xor(paquete_encriptado)
+
+                    # Separar Índice y Chunk
+                    indice = int.from_bytes(paquete[:4], "big")
+                    chunk = paquete[4:]
+                    paquetes_recibidos[indice] = chunk
+
+                # 3. Reensamblar y procesar
+                mensaje = pr.desencriptar_y_reasamblar(largo_contenido, paquetes_recibidos)
+                # Si ocurrió error de JSON, retorna dict con error, pero no rompe el loop
+
+                print(f"[SRV] Mensaje de cliente {self.id_cliente}: {mensaje}")
+                self.procesar_mensaje(mensaje)
+
+            except (ConnectionResetError, ConnectionAbortedError):
+                print(f"Error conexión cliente {self.id_cliente}")
+                break
+            except Exception as e:
+                print(f"Error inesperado en ThreadCliente {self.id_cliente}: {e}")
+                break
+
+        self.socket.close()
+
+    def procesar_mensajes_a_enviar(self) -> None:
+        """
+        Toma mensajes de la cola y los envía encriptados.
+        """
+        while True:
+            try:
+                mensaje = self.mensajes_a_enviar.get()
+                if mensaje is None:
+                    break
+
+                # Usar protocolo para obtener lista de paquetes
+                paquetes = pr.empaquetar_mensaje(mensaje)
+
+                # El primer elemento de la lista es el prefijo de largo
+                # Los siguientes son los paquetes encriptados
+                for pkt in paquetes:
+                    self.socket.sendall(pkt)
+            except OSError:
+                print("Error enviando mensaje, socket cerrado.")
+                break
+            except Exception as e:
+                print(f"Error en envío: {e}")
     
     # --- CRÍTICO 2: Helper de Llamada API ---
     def realizar_llamada_api(self, method: str, path: str, body: dict = None) -> tuple:
@@ -168,3 +253,14 @@ class ThreadCliente(threading.Thread):
         elif comando == "plantarse":
             if self.juego_actual == "blackjack":
                 self.servidor_central.salas["blackjack"].procesar_plantarse(self.nombre_usuario)
+
+        elif comando == "solicitar-historial":
+            # Llamar a la API para obtener el historial global
+            status, res_data = self.realizar_llamada_api("GET", "/games/historial")
+            if status == 200:
+                historial = res_data.get("historial", [])
+                respuesta = {"comando": "historial-global", "data": historial}
+            else:
+                respuesta = {"comando": "error", "data": "No se pudo obtener el historial."}
+
+            self.mensajes_a_enviar.put(respuesta)

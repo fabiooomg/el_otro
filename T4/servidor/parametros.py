@@ -3,16 +3,17 @@ CHUNK_SIZE = 124
 TOKEN_AUTENTICACION = "dccasino_token_secreto_2025"
 SALDO_INICIAL = 5000
 ULTIMAS_GANANCIAS_PRINCIPAL = 5
-USUARIOS_PATH = "database/usuarios.csv"
-GANANCIAS_PATH = "database/ganancias.csv"
+USUARIOS_PATH = "servidor/database/usuarios.csv"
+GANANCIAS_PATH = "servidor/database/ganancias.csv"
 
+TIEMPO_ENTRE_RONDAS = 5.0
 APUESTA_MINIMA_AVIATOR = 100
 MAXIMO_JUGADORES_AVIATOR = 3
 DURACION_RONDA_AVIATOR = 10.0
 APUESTA_MINIMA_BLACKJACK = 50
 MAXIMO_JUGADORES_BLACKJACK = 4
 
-RUTA_AVION = "cliente/assets/aviator.png"
-RUTA_CARTA_BOCA_ABAJO = "cliente/assets/cards_back.png"
-RUTA_RULETA = "cliente/assets/ruleta.png"
-RUTA_BOLITA = "cliente/assets/bolita.png"
+RUTA_AVION = "Assets/Aviator/logo-aviator.png"
+RUTA_CARTA_BOCA_ABAJO = "Assets/Blackjack/card_back.png"
+RUTA_RULETA = "Assets/Ruleta/ruleta.png"
+RUTA_BOLITA = "Assets/Ruleta/circulito.png"

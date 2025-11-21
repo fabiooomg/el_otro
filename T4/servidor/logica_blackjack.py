@@ -1,7 +1,8 @@
+import json
 import threading
 import time
 import random
-# import requests # Para la API
+import requests # Para la API
 import parametros as p
 
 class PartidaBlackjack(threading.Thread):
@@ -136,14 +137,37 @@ class PartidaBlackjack(threading.Thread):
             ganancia = 0
             
             # [cite_start]Lógica de pagos basada en el enunciado [cite: 162-166]
-            # ... implementar los 3 casos: Dealer se pasa, Dealer 17-20, Dealer 21 ...
-            
+            if dealer_valor > 21:
+                # Dealer se pasa: todos los que no se pasaron ganan
+                if user_valor <= 21:
+                     ganancia = int(apuesta * 2) # Paga 2:1 (devuelve apuesta + ganancia)
+                else:
+                     ganancia = 0 # Ambos se pasan, casa gana
+            else:
+                 # Dealer entre 17 y 21
+                if user_valor > 21:
+                    ganancia = 0
+                elif user_valor > dealer_valor:
+                    ganancia = int(apuesta * 2)
+                elif user_valor == dealer_valor:
+                    ganancia = apuesta # Empate, devuelve lo apostado
+                else:
+                    ganancia = 0 # Dealer gana
+
             # Registrar y actualizar vía API (requests)
-            # self.llamar_api_patch(user, ganancia) 
-            resultados_ronda.append({"usuario": user, "monto": ganancia})
+            if ganancia > 0:
+                self.llamar_api_patch(user, ganancia)
+
+            # Para el historial, la ganancia neta es lo pagado menos lo apostado
+            # Si perdió, la "ganancia" es -apuesta.
+            # Pero el saldo ya fue descontado al apostar.
+            # Si gana, se le suma 'ganancia' al saldo.
+            # Para el historial visual:
+            monto_neto = ganancia - apuesta
+            resultados_ronda.append({"usuario": user, "monto": monto_neto})
 
         # Registrar resultados globales de la partida vía API (POST /games/blackjack)
-        # self.llamar_api_post_games("blackjack", resultados_ronda)
+        self.llamar_api_post_games("blackjack", resultados_ronda)
         
         self.reiniciar_sala()
 
@@ -156,3 +180,29 @@ class PartidaBlackjack(threading.Thread):
         self.apuestas.clear()
         self.ronda_abierta = True
         self.notificar_clientes({"comando": "periodo-apuestas-abierto"})
+
+    # --- Métodos de Interacción con la API (requests) ---
+    def llamar_api_patch(self, usuario, cambio_saldo):
+        """ Llama al endpoint PATCH /users/:id para actualizar el saldo. """
+        try:
+            url = f"http://{self.servidor.HOST}:{self.servidor.API_PORT}/users/{usuario}"
+            headers = {'Authorization': p.TOKEN_AUTENTICACION, 'Content-Type': 'application/json'}
+            payload = {'cambio_saldo': cambio_saldo}
+
+            response = requests.patch(url, headers=headers, json=payload)
+            return response.status_code == 200
+        except Exception as e:
+            print(f"[BLACKJACK API ERROR] Fallo al actualizar saldo de {usuario}: {e}")
+            return False
+
+    def llamar_api_post_games(self, juego, resultados):
+        """ Llama al endpoint POST /games/:juego para registrar resultados. """
+        try:
+            url = f"http://{self.servidor.HOST}:{self.servidor.API_PORT}/games/{juego}"
+            headers = {'Authorization': p.TOKEN_AUTENTICACION, 'Content-Type': 'application/json'}
+
+            response = requests.post(url, headers=headers, json=resultados)
+            return response.status_code == 200
+        except Exception as e:
+            print(f"[BLACKJACK API ERROR] Fallo al postear resultados: {e}")
+            return False
