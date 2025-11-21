@@ -1,155 +1,45 @@
-.equ R_ZERO, R0            
+data:
 
-.equ LEDS_ADDR,       0x000  
-.equ SWITCHES_ADDR,   0x001  
-.equ DISPLAY_ADDR,    0x002  
-.equ BUTTONS_ADDR,    0x003   
-.equ TIMER_ADDR,      0x005  
+LEDS_ADDR,       0x000  
+SWITCHES_ADDR,   0x001  
+DISPLAY_ADDR,    0x002  
+BUTTONS_ADDR,    0x003   
+TIMERS_ADDR,     0x005
+TIMERMS_ADDR,    0x006  
+TIMERUS_ADDR,    0x007  
 
-.equ SWITCH_INICIO_MASK, 0x0001 
+code:
 
-.equ J1_MASK, 0x0002          
-.equ J2_MASK, 0x0004          
-.equ J3_MASK, 0x0008          
-.equ J4_MASK, 0x0010          
-.equ J5_MASK, 0x0001          
+switch_inicio:
 
-.equ DISPLAY_1, 1
-.equ DISPLAY_2, 2
-.equ DISPLAY_3, 3
-.equ DISPLAY_4, 4
-.equ DISPLAY_5, 5
+MOV A, (SWITCHES_ADDR)
+AND A, 1
+CMP A, 1
+JEQ empezar_juego
 
+MOV B, (BUTTONS_ADDR)
+AND B, 1
+MOV A, B
+MOV (DISPLAY_ADDR), A
+MOV B, (BUTTONS_ADDR)
+AND B, 2
+MOV A, B
+MOV (DISPLAY_ADDR), A
+MOV B, (BUTTONS_ADDR)
+AND B, 4
+MOV A, B
+MOV (DISPLAY_ADDR), A
+MOV B, (BUTTONS_ADDR)
+AND B, 8
+MOV A, B
+MOV (DISPLAY_ADDR), A
+MOV B, (BUTTONS_ADDR)
+AND B, 16
+MOV A, B
+MOV (DISPLAY_ADDR), A
 
-INICIO:
-    STORE R_ZERO, DISPLAY_ADDR  
-    STORE R_ZERO, LEDS_ADDR     
-    JUMP SALA_ESPERA
+JMP switch_inicio
 
-SALA_ESPERA:
-    LOAD R1, SWITCHES_ADDR      
-    AND R1, R1, SWITCH_INICIO_MASK 
-    
-    CMP R1, R_ZERO              
-    JUMP_NE INICIO_CUENTA       
-    
-    LOAD R2, BUTTONS_ADDR       
-    CMP R2, R_ZERO              
-    JUMP_EQ SALA_ESPERA         
-
-    CALL MOSTRAR_JUGADOR_EARLY 
-
-    STORE R4, DISPLAY_ADDR      
-    JUMP SALA_ESPERA            
-
-INICIO_CUENTA:
-    LOAD R5, #3                 
-    
-CUENTA_LOOP:
-    STORE R5, DISPLAY_ADDR      
-    
-    CALL DELAY_1_SEC            
-
-    DEC R5                      
-    CMP R5, R_ZERO
-    JUMP_GE CUENTA_LOOP         
-    
-    STORE R_ZERO, DISPLAY_ADDR  
-    JUMP ESPERA_REACCION        
-
-ESPERA_REACCION:
-    LOAD R6, TIMER_ADDR         
-    
-REACCION_LOOP:
-    LOAD R2, BUTTONS_ADDR       
-    CMP R2, R_ZERO
-    JUMP_EQ REACCION_LOOP       
-
-    LOAD R7, TIMER_ADDR         
-    SUB R8, R7, R6              
-    
-    CALL ENCONTRAR_GANADOR      
-
-    JUMP MOSTRAR_RESULTADO      
-
-
-MOSTRAR_RESULTADO:
-    STORE R9, DISPLAY_ADDR      
-    STORE R8, LEDS_ADDR         
-    
-    JUMP ESPERA_REINICIO        
-
-
-ESPERA_REINICIO:
-    LOAD R1, SWITCHES_ADDR
-    AND R1, R1, SWITCH_INICIO_MASK
-    
-    CMP R1, R_ZERO              
-    JUMP_NE ESPERA_REINICIO     
-    
-    JUMP INICIO                 
-
-
-DELAY_1_SEC:
-    PUSH R10                    
-    LOAD R10, TIMER_ADDR        
-    ADD R10, R10, #1000         
-DELAY_WAIT:
-    LOAD R7, TIMER_ADDR
-    CMP R7, R10                 
-    JUMP_LT DELAY_WAIT          
-    POP R10                     
-    RET
-
-MOSTRAR_JUGADOR_EARLY:
-    
-    AND R3, R2, J1_MASK
-    JUMP_NE FOUND_J1_E
-
-    AND R3, R2, J2_MASK
-    JUMP_NE FOUND_J2_E
-
-    AND R3, R2, J3_MASK
-    JUMP_NE FOUND_J3_E
-
-    AND R3, R2, J4_MASK
-    JUMP_NE FOUND_J4_E
-
-    AND R3, R2, J5_MASK
-    JUMP_NE FOUND_J5_E
-    
-    LOAD R4, R_ZERO 
-    RET
-
-FOUND_J1_E: LOAD R4, #DISPLAY_1
-FOUND_J2_E: LOAD R4, #DISPLAY_2
-FOUND_J3_E: LOAD R4, #DISPLAY_3
-FOUND_J4_E: LOAD R4, #DISPLAY_4
-FOUND_J5_E: LOAD R4, #DISPLAY_5
-
-
-ENCONTRAR_GANADOR:
-    
-    AND R3, R2, J1_MASK
-    JUMP_NE FOUND_J1
-    
-    AND R3, R2, J2_MASK
-    JUMP_NE FOUND_J2
-    
-    AND R3, R2, J3_MASK
-    JUMP_NE FOUND_J3
-    
-    AND R3, R2, J4_MASK
-    JUMP_NE FOUND_J4
-    
-    AND R3, R2, J5_MASK
-    JUMP_NE FOUND_J5
-    
-    LOAD R9, R_ZERO 
-    RET
-
-FOUND_J1: LOAD R9, #DISPLAY_1
-FOUND_J2: LOAD R9, #DISPLAY_2
-FOUND_J3: LOAD R9, #DISPLAY_3
-FOUND_J4: LOAD R9, #DISPLAY_4
-FOUND_J5: LOAD R9, #DISPLAY_5
+empezar_juego:
+MOV C, 0xFFFF
+MOV DISPLAY_ADDR, C
