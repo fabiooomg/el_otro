@@ -194,6 +194,27 @@ class ThreadCliente(threading.Thread):
             
             self.mensajes_a_enviar.put(respuesta)
 
+        # --- 1.2 REGISTRO ---
+        elif comando == "registro":
+            usuario = data.get("usuario")
+            clave = data.get("clave")
+
+            # Llamar a la API para registrar (POST /register)
+            status, res_data = self.realizar_llamada_api("POST", "/register", {"usuario": usuario, "clave": clave})
+
+            if status == 201:
+                # Registro exitoso, auto-login
+                self.nombre_usuario = usuario
+                self.saldo_actual = res_data.get("saldo", 0)
+                respuesta = {
+                    "comando": "login-exitoso", # Reutilizamos el comando de login exitoso
+                    "data": {"usuario": self.nombre_usuario, "saldo": self.saldo_actual}
+                }
+            else:
+                respuesta = {"comando": "login-fallido", "data": res_data.get("error", "Error en registro.")}
+
+            self.mensajes_a_enviar.put(respuesta)
+
         # --- 2. ENTRAR A JUEGO ---
         elif comando == "entrar-juego":
             juego = data["juego"] # Ej: "aviator" o "blackjack"
