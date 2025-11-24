@@ -3,7 +3,7 @@ import json
 from PyQt5.QtCore import QThread, pyqtSignal
 from math import ceil
 import parametros as para
-import servidor.protocolo as pr
+import protocolo as pr
 
 class Cliente(QThread):
     
