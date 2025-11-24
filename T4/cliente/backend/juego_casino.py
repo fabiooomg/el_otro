@@ -7,8 +7,12 @@ class DCCasinoBackend(QObject):
     senal_login_exitoso = pyqtSignal(str, int) # Usuario, Saldo
     senal_respuesta_login = pyqtSignal(bool, str) # Éxito/Fallo, Mensaje
     senal_actualizar_saldo = pyqtSignal(int)
-    senal_historial_listo = pyqtSignal(list) # 💡 Señal para devolver el historial
-    # ... más señales de juego: senal_actualizar_mesa_blackjack, senal_mostrar_multiplicador_aviator
+    senal_historial_listo = pyqtSignal(list)
+
+    # Señales de juego
+    senal_actualizar_mesa_blackjack = pyqtSignal(dict)
+    senal_mostrar_multiplicador_aviator = pyqtSignal(float)
+    senal_crash_aviator = pyqtSignal(float)
 
     def __init__(self) -> None:
         super().__init__()
@@ -60,21 +64,31 @@ class DCCasinoBackend(QObject):
         
     def procesar_actualizacion_juego(self, datos_juego: dict) -> None:
         """ Distribuye los datos de juego (Aviator, Blackjack) a la ventana correcta. """
-        comando = datos_juego.get("tipo_juego")
+        comando = datos_juego.get("comando")
+        data = datos_juego.get("data")
         
-        if comando == "AVIATOR_UPDATE":
-            # self.senal_mostrar_multiplicador_aviator.emit(datos_juego)
-            pass
-        elif comando == "BLACKJACK_MESA":
-            # self.senal_actualizar_mesa_blackjack.emit(datos_juego)
-            pass
+        if comando == "estado-mesa": # Blackjack
+            self.senal_actualizar_mesa_blackjack.emit(data)
+
+        elif comando == "multiplicador-update": # Aviator
+            multiplicador = float(data.get("multiplicador", 1.0))
+            self.senal_mostrar_multiplicador_aviator.emit(multiplicador)
+
+        elif comando == "ronda-finalizada": # Aviator Crash
+            multiplicador_final = float(data.get("multiplicador_final", 1.0))
+            self.senal_crash_aviator.emit(multiplicador_final)
+
         elif comando == "historial-global":
              # Recibe el historial del servidor y lo pasa al frontend
-             historial = datos_juego.get("data", [])
+             historial = data if isinstance(data, list) else []
              self.senal_historial_listo.emit(historial)
 
     # D. Métodos de Acción del Juego (UI -> Red)
     
+    def entrar_juego(self, juego: str) -> None:
+        """ Notifica al servidor que el usuario entra a una sala. """
+        self.cliente.enviar_mensaje({"comando": "entrar-juego", "data": {"juego": juego}})
+
     def solicitar_historial_global(self) -> None:
         """ Solicita el historial de ganancias al servidor. """
         self.cliente.enviar_mensaje({"comando": "solicitar-historial"})

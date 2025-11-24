@@ -46,7 +46,14 @@ class DCCasinoApp: # Renombrar la clase principal
         self.frontend_principal.senal_solicitar_historial.connect(self.backend.solicitar_historial_global)
         self.backend.senal_historial_listo.connect(self.frontend_principal.mostrar_historial)
 
-        # UI -> UI (Transición a juegos queda igual)
+        # UI -> UI (Transición a juegos)
+        self.frontend_principal.senal_entrar_blackjack.connect(self.entrar_blackjack)
+        self.frontend_principal.senal_entrar_aviator.connect(self.entrar_aviator)
+
+        # Backend -> UI: Actualización del estado del juego
+        self.backend.senal_actualizar_mesa_blackjack.connect(self.frontend_blackjack.actualizar_mesa)
+        self.backend.senal_mostrar_multiplicador_aviator.connect(self.frontend_aviator.actualizar_multiplicador)
+        self.backend.senal_crash_aviator.connect(self.frontend_aviator.mostrar_crash)
         
         # --- 3. Flujo de Juegos (Acciones y Retorno) ---
 
@@ -60,12 +67,31 @@ class DCCasinoApp: # Renombrar la clase principal
         self.frontend_aviator.senal_retirarse.connect(self.backend.retirarse_aviator)
         
         # UI -> UI: Retorno al menú principal
-        self.frontend_blackjack.senal_volver_principal.connect(self.frontend_blackjack.hide)
-        self.frontend_blackjack.senal_volver_principal.connect(self.frontend_principal.mostrar_ventana) # Corregido
+        self.frontend_blackjack.senal_volver_principal.connect(self.volver_principal)
+        self.frontend_aviator.senal_volver_principal.connect(self.volver_principal)
+
+    def entrar_blackjack(self):
+        """ Oculta el menú principal, muestra la ventana de Blackjack y notifica al servidor. """
+        self.frontend_principal.hide()
+        self.frontend_blackjack.show()
+        self.backend.entrar_juego("blackjack")
+
+    def entrar_aviator(self):
+        """ Oculta el menú principal, muestra la ventana de Aviator y notifica al servidor. """
+        self.frontend_principal.hide()
+        self.frontend_aviator.show()
+        self.frontend_aviator.iniciar_ronda() # Resetear vista
+        self.backend.entrar_juego("aviator")
+
+    def volver_principal(self):
+        """ Oculta la ventana de juego actual y regresa al menú principal. """
+        # Ocultar ambas ventanas de juego por si acaso
+        self.frontend_blackjack.hide()
+        self.frontend_aviator.hide()
         
-        # ⚠️ CRÍTICO: Retorno de Aviator
-        self.frontend_aviator.senal_volver_principal.connect(self.frontend_aviator.hide)
-        self.frontend_aviator.senal_volver_principal.connect(self.frontend_principal.mostrar_ventana) # Corregido
+        # Mostrar principal y actualizar datos
+        self.frontend_principal.show()
+        self.backend.solicitar_historial_global() # Refrescar historial
 
     def iniciar(self) -> None:
         """
