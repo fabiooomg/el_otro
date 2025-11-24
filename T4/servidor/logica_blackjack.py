@@ -173,8 +173,20 @@ class PartidaBlackjack(threading.Thread):
 
     def notificar_clientes_estado_mesa(self):
         """ Envía el estado actual de la mesa a todos los jugadores. """
-        # Lógica para enviar el estado de manos y turno
-        pass
+        # Iterar sobre todos los clientes conectados al servidor
+        for cliente in self.servidor.clientes.values():
+            # Verificar si el cliente está jugando Blackjack
+            if cliente.juego_actual == "blackjack" and cliente.nombre_usuario in self.apuestas:
+                 mano_jugador = self.manos.get(cliente.nombre_usuario, [])
+
+                 mensaje = {
+                     "comando": "estado-mesa",
+                     "data": {
+                         "dealer_mano": self.dealer_mano,
+                         "mano_jugador": mano_jugador
+                     }
+                 }
+                 cliente.mensajes_a_enviar.put(mensaje)
         
     def reiniciar_sala(self):
         self.apuestas.clear()
