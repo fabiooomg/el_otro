@@ -85,12 +85,22 @@ def token_requerido(func):
 # (Público) GET /users/<user_id> 
 @app.route('/users/<string:user_id>', methods=['GET'])
 def get_user(user_id):
-    """ Verifica si el usuario existe y retorna su saldo. """
+    """ Verifica si el usuario existe, valida la clave y retorna su saldo. """
+    # Intentar obtener la clave del cuerpo de la petición
+    data = request.get_json(silent=True)
+    clave_input = data.get("clave") if data else None
+
     users_data = _read_users_data()
     for user in users_data:
         if user["usuario"] == user_id:
-            # Aquí la clave se puede validar si es necesario, pero el cliente la tiene localmente
-            # La API solo verifica existencia y retorna info pública (saldo)
+            # Verificar contraseña si se proporciona
+            if clave_input is not None and user["clave"] != clave_input:
+                return flask.Response(
+                    json.dumps({"error": "Contraseña incorrecta"}),
+                    status=401, # Unauthorized
+                    mimetype='application/json'
+                )
+
             return flask.Response(
                 json.dumps({"usuario": user_id, "saldo": user["saldo"]}),
                 status=200,
