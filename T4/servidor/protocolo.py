@@ -39,6 +39,7 @@ def empaquetar_mensaje(mensaje: dict) -> list[bytes]:
     paquetes_a_enviar.append(prefijo_largo) # Es el primer elemento de la lista
 
     # 2. Fragmentación, Relleno, Enumeración y Encriptación
+    counter = 1 # Sequential counter starting at 1
     for i in range(0, largo_contenido, p.CHUNK_SIZE):
         chunk = bytes_contenido[i:i + p.CHUNK_SIZE]
         
@@ -47,12 +48,14 @@ def empaquetar_mensaje(mensaje: dict) -> list[bytes]:
             chunk += b'\x00' * (p.CHUNK_SIZE - len(chunk))
 
         # Enumeración (4 bytes BIG ENDIAN)
-        indice_bytes = i.to_bytes(4, "big") 
+        indice_bytes = counter.to_bytes(4, "big")
         paquete = indice_bytes + chunk 
         
         # Encriptación XOR
         paquete_encriptado = cifrar_xor(paquete)
         paquetes_a_enviar.append(paquete_encriptado)
+
+        counter += 1
 
     return paquetes_a_enviar
 

@@ -3,6 +3,7 @@ import json
 from PyQt5.QtCore import QThread, pyqtSignal
 from math import ceil
 import parametros as para
+import servidor.protocolo as pr
 
 class Cliente(QThread):
     
@@ -67,15 +68,14 @@ class Cliente(QThread):
                 largo_contenido = int.from_bytes(largo_bytes, "little")
 
                 num_paquetes = ceil(largo_contenido / para.CHUNK_SIZE)
-                contenido_reasamblado = bytearray()
                 paquetes_recibidos = {}
 
                 # 2. RECIBIR PAQUETES (128 bytes cada uno)
                 for _ in range(num_paquetes):
                     paquete_encriptado = self.recibir_bytes(para.CHUNK_SIZE + 4) # 128 bytes
                     
-                    # Desencriptar
-                    paquete = self.cifrar_xor(paquete_encriptado)
+                    # Desencriptar usando pr.cifrar_xor (porque empaquetar_mensaje no se usa aquí)
+                    paquete = pr.cifrar_xor(paquete_encriptado)
 
                     # Obtener Índice (4 bytes BIG ENDIAN)
                     indice = int.from_bytes(paquete[:4], "big")
@@ -85,24 +85,35 @@ class Cliente(QThread):
                     
                     paquetes_recibidos[indice] = chunk
 
-                # 3. REASAMBLAR CONTENIDO EN ORDEN Y DECODIFICAR
-                for indice in sorted(paquetes_recibidos.keys()):
-                    contenido_reasamblado.extend(paquetes_recibidos[indice])
+                # 3. REASAMBLAR CONTENIDO (Usando helper)
+                # Ojo: desencriptar_y_reasamblar no hace XOR, solo reensambla.
+                # Ya hicimos el XOR arriba.
                 
-                # Recortar el relleno (padding)
-                bytes_mensaje = bytes(contenido_reasamblado[:largo_contenido])
+                # Pero pr.desencriptar_y_reasamblar hace JSON loads.
+                # Reutilizamos la función del protocolo
+                mensaje = pr.desencriptar_y_reasamblar(largo_contenido, paquetes_recibidos)
 
-                # 4. JSON LOAD
-                mensaje = json.loads(bytes_mensaje.decode("utf-8"))
+                if "comando" in mensaje and mensaje["comando"] == "error":
+                     print(f"[BACK] Error de protocolo: {mensaje['data']}")
+                     continue
+
                 print(f"[BACK] Mensaje servidor: {mensaje}")
 
                 # 5. PROCESAMIENTO DE COMANDOS DCCASINO
                 if mensaje["comando"] == "login-exitoso":
                     self.senal_respuesta_login.emit(True, "¡Login exitoso!")
-                    self.senal_mostrar_principal.emit()
-                elif mensaje["comando"] == "saldo-actualizado":
-                    self.senal_actualizar_saldo.emit(mensaje["data"]["saldo"])
-                # ... y así con todos los comandos de juego
+                    self.senal_mostrar_principal.emit(int(mensaje["data"]["saldo"]))
+                elif mensaje["comando"] == "login-fallido":
+                    self.senal_respuesta_login.emit(False, mensaje["data"])
+                elif mensaje["comando"] == "apuesta-aceptada":
+                    self.senal_actualizar_saldo.emit(mensaje["data"]["nuevo_saldo"])
+                elif mensaje["comando"] == "apuesta-fallida":
+                    print(f"Apuesta fallida: {mensaje['data']}")
+                elif mensaje.get("comando") == "sala-aceptada":
+                    # Opcional: notificar que se entró a sala
+                    pass
+                # Delegar otros mensajes a juego_casino via señal
+                self.senal_actualizar_juego.emit(mensaje)
                 
             except Exception as e:
                 print(f"[BACK] Error en la comunicación con el servidor: {e}")
@@ -110,42 +121,9 @@ class Cliente(QThread):
                 break # Terminar el thread si hay un error fatal
 
     def enviar_mensaje(self, mensaje: dict) -> None:
-        bytes_contenido = json.dumps(mensaje).encode("utf-8")
-        largo_contenido = len(bytes_contenido)
-
-        # Enviar el largo total del contenido (LITTLE ENDIAN)
-        self.socket.sendall(largo_contenido.to_bytes(4, "little"))
-        paquetes_a_enviar = []
-
-        # 2. Fragmentación y Encriptación
-        for i in range(0, largo_contenido, para.CHUNK_SIZE):
-            # 2.1 Obtener el chunk (124 bytes)
-            chunk = bytes_contenido[i:i + para.CHUNK_SIZE]
-
-            # 2.2 Relleno (Padding) con bytes nulos si el chunk es el último y es más corto
-            if len(chunk) < para.CHUNK_SIZE:
-                chunk += b'\x00' * (para.CHUNK_SIZE - len(chunk))
-
-            # 2.3 Enumeración del paquete (4 bytes BIG ENDIAN)
-            indice_bytes = i.to_bytes(4, "big") # El índice es la posición de inicio
-
-            # Paquete de 128 bytes antes de encriptar
-            paquete = indice_bytes + chunk 
-
-            # 2.4 Encriptación XOR (Función auxiliar)
-            paquete_encriptado = self.cifrar_xor(paquete)
-
-            paquetes_a_enviar.append(paquete_encriptado)
+        # Usar la función helper del protocolo
+        paquetes_a_enviar = pr.empaquetar_mensaje(mensaje)
 
         # 3. Envío de todos los paquetes
         for paquete in paquetes_a_enviar:
             self.socket.sendall(paquete)
-            
-    # Mantenla dentro de la clase Cliente o como una función de modulo:
-
-    def cifrar_xor(self, paquete: bytes) -> bytes:
-        cifrado = b''
-        for i, byte in enumerate(paquete):
-            # Aplica XOR con el byte correspondiente de la clave de 128 bytes
-            cifrado += bytes([byte ^ para.CLAVE_CASINO[i % len(para.CLAVE_CASINO)]])
-        return cifrado
