@@ -1,7 +1,7 @@
 import sys
 from PyQt5.QtWidgets import QApplication
 # Importar las nuevas clases de ventana y la lógica de backend
-from frontend.ventanas import (VentanaInicio, VentanaPrincipal, 
+from frontend.ventanas import (VentanaLogin, VentanaPrincipal,
                                VentanaBlackjack, VentanaAviator) 
 from backend.juego_casino import DCCasinoBackend 
 
@@ -12,7 +12,7 @@ class DCCasinoApp: # Renombrar la clase principal
         Instanciamos todas las ventanas y clases necesarias
         """
         # 1. Instanciar todas las ventanas (ya no reciben host/port)
-        self.frontend_login = VentanaInicio()
+        self.frontend_login = VentanaLogin()
         self.frontend_principal = VentanaPrincipal()
         self.frontend_blackjack = VentanaBlackjack()
         self.frontend_aviator = VentanaAviator()
