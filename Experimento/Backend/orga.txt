@@ -1,0 +1,18 @@
+como deberia ser el mensaje dict:
+
+{
+    "codigo": XXX=000,
+    "desc": "descripcion del codigo"="",
+    "body": dict-con-datos=None
+}
+el body no es necesario ya que puede ser el mensaje una simple señal, en caso de necesitar body, el receptor lo sabra descifrar
+organismos que mandan mensajes:
+Jugador, Sistema, cartas
+
+Codigos posibles:
+100: Cargar usuario y menu
+101: Enviar mensaje a menu
+102: Enviar mensaje a Batalla
+103: Enviar mensaje a Tienda
+104: Enviar mensaje a coleccion
+

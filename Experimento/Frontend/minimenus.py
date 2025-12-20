@@ -93,6 +93,12 @@ class VTienda(QWidget):
         final.addLayout(botoncitos)
         self.setLayout(final) 
         
+class VForja(QWidget):
+    pass        
+        
+class VColeccion(QWidget):
+    pass
+        
         
 if __name__ == "__main__":
     def hook(type, value, traceback) -> None:
