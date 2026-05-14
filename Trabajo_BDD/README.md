@@ -33,7 +33,20 @@
 
 ## 2. Solución aplicada
 
-    Se utilizo una jerarquia IS-A para poder modelar los distintos tipos de entidades. La entidad PERSONA modela los distintos tipos de personas posibles lo cual lo hace la entidad padre, se eligio RUN como llave primaria ya que es mas facil de distingir frente a los nombres que pueden ser mas extensos. 
+    Se utilizo una jerarquia IS-A para poder modelar los distintos tipos de entidades. La entidad PERSONA modela los distintos tipos de personas posibles lo cual lo hace la entidad padre, se eligio RUN como llave primaria ya que es mas facil de distingir frente a los nombres que pueden ser mas extensos. PERSONA contiene los atributos comunes (RUN, nombre, correo, telefono, direccion) y las entidades hijas son SOCIOS, INVITADOS, CLIENTES, CONTACTOS-EMPRESA,USUARIOS. A su vez SOCIOS se divide en TITULARES, BENEFICIARIOS, ADICIONALES. Estas decisiones representan fielmente el rol de cada entidad y evitan redundancia.
+
+    Se modeló RESERVA como entidad independiente en lugar de una relación M:N entre TITULAR y LUGAR, dado que tiene atributos propios relevantes como fecha, hora, monto y estado de 
+    ejecución.
+
+    Se separó el precio en una entidad propia porque varía según día, hora y tiene vigencia temporal, lo que impide tratarlo como un simple atributo de LUGAR.
+
+    Se distinguió entre MEMBRESIA (el contrato anual) y CUOTA (cada pago mensual), reflejando la regla de negocio que permite pago total o en 12 cuotas.
+
+    Los cargos se modelaron como entidad separada con vigencia (fecha inicio y término), vinculada a PERSONA y SUCURSAL, permitiendo registrar el historial de cargos y al gerente de cada sucusal. Aunque sucursal y comunda poseen una relacion 1:1 ya que cada comuna posee una unica sucursal, entonces sucursal es la unica entidad que no necesita un id aparte, ya que el nombre se garantiza distinto y unico.
+
+    Dado que el enunciado especifica códigos únicos para ambas, se modelaron como entidades independientes en lugar de simples atributos, permitiendo normalizar la información geográfica.
+
+    Se modeló como entidad débil de EVENTOS porque solo existe en el contexto de un evento, con datos mínimos (RUN y nombre) y llave parcial compuesta con el código del evento.
 
 	
 ### 2.1 Modelo Entidad Relación
@@ -42,6 +55,7 @@
 
 ### 2.2 Modelo Entidad Relación normalizado
 
+    El modelo E/R se convirtió a un esquema relacional normalizado en BCNF. Todas las tablas tienen un único determinante que es su llave primaria, sin dependencias parciales ni transitivas. En los casos donde existían dependencias transitivas (como nombre_cargo en PERSONA), se separaron en tablas independientes. Se utilizaron llaves artificiales (SERIAL) cuando ningún atributo natural identificaba unívocamente a la entidad.
 
 Sintaxis: **atributo** indica llave primaria y →TABLA indica llave foránea.
 
